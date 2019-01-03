@@ -7,6 +7,7 @@ import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.item.ItemTool;
 import cn.nukkit.item.enchantment.Enchantment;
+import cn.nukkit.level.Level;
 import cn.nukkit.level.MovingObjectPosition;
 import cn.nukkit.level.Position;
 import cn.nukkit.math.AxisAlignedBB;
@@ -17,7 +18,6 @@ import cn.nukkit.metadata.Metadatable;
 import cn.nukkit.plugin.Plugin;
 import cn.nukkit.potion.Effect;
 import cn.nukkit.utils.BlockColor;
-
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +27,7 @@ import java.util.Optional;
  * author: MagicDroidX
  * Nukkit Project
  */
-public abstract class Block extends Position implements Metadatable, Cloneable {
+public abstract class Block extends Position implements Metadatable, Cloneable, AxisAlignedBB {
     public static final int AIR = 0;
     public static final int STONE = 1;
     public static final int GRASS = 2;
@@ -141,7 +141,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     public static final int CLAY_BLOCK = 82;
     public static final int REEDS = 83;
     public static final int SUGARCANE_BLOCK = 83;
-
+    public static final int JUKEBOX = 84;
     public static final int FENCE = 85;
     public static final int PUMPKIN = 86;
     public static final int NETHERRACK = 87;
@@ -295,6 +295,11 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     public static final int END_ROD = 208;
     public static final int END_GATEWAY = 209;
 
+    public static final int MAGMA = 213;
+    public static final int BLOCK_NETHER_WART_BLOCK = 214;
+    public static final int RED_NETHER_BRICK = 215;
+    public static final int BONE_BLOCK = 216;
+
     public static final int SHULKER_BOX = 218;
     public static final int PURPLE_GLAZED_TERRACOTTA = 219;
     public static final int WHITE_GLAZED_TERRACOTTA = 220;
@@ -334,13 +339,12 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     public static boolean[] solid = null;
     public static double[] hardness = null;
     public static boolean[] transparent = null;
-    public AxisAlignedBB boundingBox = null;
-    public AxisAlignedBB collisionBoundingBox = null;
-    protected int meta = 0;
+    /**
+     * if a block has can have variants
+     */
+    public static boolean[] hasMeta = null;
 
-    protected Block(Integer meta) {
-        this.meta = (meta != null ? meta : 0);
-    }
+    protected Block() {}
 
     @SuppressWarnings("unchecked")
     public static void init() {
@@ -352,6 +356,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             solid = new boolean[256];
             hardness = new double[256];
             transparent = new boolean[256];
+            hasMeta = new boolean[256];
 
             list[AIR] = BlockAir.class; //0
             list[STONE] = BlockStone.class; //1
@@ -410,7 +415,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             list[REDSTONE_WIRE] = BlockRedstoneWire.class; //55
             list[DIAMOND_ORE] = BlockOreDiamond.class; //56
             list[DIAMOND_BLOCK] = BlockDiamond.class; //57
-            list[WORKBENCH] = BlockWorkbench.class; //58
+            list[WORKBENCH] = BlockCraftingTable.class; //58
             list[WHEAT_BLOCK] = BlockWheat.class; //59
             list[FARMLAND] = BlockFarmland.class; //60
             list[FURNACE] = BlockFurnace.class; //61
@@ -436,7 +441,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             list[CACTUS] = BlockCactus.class; //81
             list[CLAY_BLOCK] = BlockClay.class; //82
             list[SUGARCANE_BLOCK] = BlockSugarcane.class; //83
-
+            list[JUKEBOX] = BlockJukebox.class; //84
             list[FENCE] = BlockFence.class; //85
             list[PUMPKIN] = BlockPumpkin.class; //86
             list[NETHERRACK] = BlockNetherrack.class; //87
@@ -512,7 +517,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             list[DOUBLE_WOOD_SLAB] = BlockDoubleSlabWood.class; //157
             list[WOOD_SLAB] = BlockSlabWood.class; //158
             list[STAINED_TERRACOTTA] = BlockTerracottaStained.class; //159
-            //TODO: list[STAINED_GLASS_PANE] = BlockGlassPaneStained.class; //160
+            list[STAINED_GLASS_PANE] = BlockGlassPaneStained.class; //160
 
             list[LEAVES2] = BlockLeaves2.class; //161
             list[WOOD2] = BlockWood2.class; //162
@@ -558,6 +563,8 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             list[END_ROD] = BlockEndRod.class; //208
             list[END_GATEWAY] = BlockEndGateway.class; //209
 
+            list[BONE_BLOCK] = BlockBone.class; //216
+
             //TODO: list[SHULKER_BOX] = BlockShulkerBox.class; //218
             list[PURPLE_GLAZED_TERRACOTTA] = BlockTerracottaGlazedPurple.class; //219
             list[WHITE_GLAZED_TERRACOTTA] = BlockTerracottaGlazedWhite.class; //220
@@ -580,6 +587,7 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             list[CONCRETE_POWDER] = BlockConcretePowder.class; //237
 
             //TODO: list[CHORUS_PLANT] = BlockChorusPlant.class; //240
+            list[STAINED_GLASS] = BlockGlassStained.class; //241
             list[PODZOL] = BlockPodzol.class; //243
             list[BEETROOT_BLOCK] = BlockBeetroot.class; //244
             list[GLOWING_OBSIDIAN] = BlockObsidianGlowing.class; //246
@@ -595,10 +603,17 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
                     Block block;
                     try {
                         block = (Block) c.newInstance();
-                        Constructor constructor = c.getDeclaredConstructor(int.class);
-                        constructor.setAccessible(true);
-                        for (int data = 0; data < 16; ++data) {
-                            fullList[(id << 4) | data] = (Block) constructor.newInstance(data);
+                        try {
+                            Constructor constructor = c.getDeclaredConstructor(int.class);
+                            constructor.setAccessible(true);
+                            for (int data = 0; data < 16; ++data) {
+                                fullList[(id << 4) | data] = (Block) constructor.newInstance(data);
+                            }
+                            hasMeta[id] = true;
+                        } catch (NoSuchMethodException ignore) {
+                            for (int data = 0; data < 16; ++data) {
+                                fullList[(id << 4) | data] = block;
+                            }
                         }
                     } catch (Exception e) {
                         Server.getInstance().getLogger().error("Error while registering " + c.getName(), e);
@@ -637,35 +652,39 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     }
 
     public static Block get(int id) {
-        return get(id, 0);
+        return fullList[id << 4].clone();
     }
 
     public static Block get(int id, Integer meta) {
-        return get(id, meta, null);
+        if (meta != null) {
+            return fullList[(id << 4) + meta].clone();
+        } else {
+            return fullList[id << 4].clone();
+        }
     }
 
     @SuppressWarnings("unchecked")
     public static Block get(int id, Integer meta, Position pos) {
-        Block block;
-        try {
-            Class c = list[id];
-            if (c != null) {
-                Constructor constructor = c.getDeclaredConstructor(int.class);
-                constructor.setAccessible(true);
-                block = (Block) constructor.newInstance(meta);
-            } else {
-                block = new BlockUnknown(id, meta);
-            }
-        } catch (Exception e) {
-            block = new BlockUnknown(id, meta);
-        }
-
+        Block block = fullList[(id << 4) | (meta == null ? 0 : meta)].clone();
         if (pos != null) {
             block.x = pos.x;
             block.y = pos.y;
             block.z = pos.z;
             block.level = pos.level;
         }
+        return block;
+    }
+
+    public static Block get(int id, int data) {
+        return fullList[(id << 4) + data].clone();
+    }
+
+    public static Block get(int fullId, Level level, int x, int y, int z) {
+        Block block = fullList[fullId].clone();
+        block.x = x;
+        block.y = y;
+        block.z = z;
+        block.level = level;
         return block;
     }
 
@@ -790,16 +809,28 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
 
     public abstract int getId();
 
+    /**
+     * The full id is a combination of the id and data.
+     * @return
+     */
+    public int getFullId() {
+        return (getId() << 4);
+    }
+
     public void addVelocityToEntity(Entity entity, Vector3 vector) {
 
     }
 
-    public final int getDamage() {
-        return this.meta;
+    public int getDamage() {
+        return 0;
+    }
+
+    public void setDamage(int meta) {
+        // Do nothing
     }
 
     public final void setDamage(Integer meta) {
-        this.meta = (meta == null ? 0 : meta & 0x0f);
+        setDamage((meta == null ? 0 : meta & 0x0f));
     }
 
     final public void position(Position v) {
@@ -807,7 +838,6 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
         this.y = (int) v.y;
         this.z = (int) v.z;
         this.level = v.level;
-        this.boundingBox = null;
     }
 
     public Item[] getDrops(Item item) {
@@ -822,21 +852,27 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
 
     private static double toolBreakTimeBonus0(
             int toolType, int toolTier, boolean isWoolBlock, boolean isCobweb) {
-        if(toolType == ItemTool.TYPE_SWORD) return isCobweb ? 15.0: 1.0;
-        if(toolType == ItemTool.TYPE_SHEARS) return isWoolBlock ? 5.0: 15.0;
-        if(toolType == ItemTool.TYPE_NONE) return 1.0;
+        if (toolType == ItemTool.TYPE_SWORD) return isCobweb ? 15.0 : 1.0;
+        if (toolType == ItemTool.TYPE_SHEARS) return isWoolBlock ? 5.0 : 15.0;
+        if (toolType == ItemTool.TYPE_NONE) return 1.0;
         switch (toolTier) {
-            case ItemTool.TIER_WOODEN: return 2.0;
-            case ItemTool.TIER_STONE: return 4.0;
-            case ItemTool.TIER_IRON: return 6.0;
-            case ItemTool.TIER_DIAMOND: return 8.0;
-            case ItemTool.TIER_GOLD: return 12.0;
-            default: return 1.0;
+            case ItemTool.TIER_WOODEN:
+                return 2.0;
+            case ItemTool.TIER_STONE:
+                return 4.0;
+            case ItemTool.TIER_IRON:
+                return 6.0;
+            case ItemTool.TIER_DIAMOND:
+                return 8.0;
+            case ItemTool.TIER_GOLD:
+                return 12.0;
+            default:
+                return 1.0;
         }
     }
 
     private static double speedBonusByEfficiencyLore0(int efficiencyLoreLevel) {
-        if(efficiencyLoreLevel == 0) return 0;
+        if (efficiencyLoreLevel == 0) return 0;
         return efficiencyLoreLevel * efficiencyLoreLevel + 1;
     }
 
@@ -845,20 +881,20 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     }
 
     private static int toolType0(Item item) {
-        if(item.isSword())      return ItemTool.TYPE_SWORD      ;
-        if(item.isShovel())     return ItemTool.TYPE_SHOVEL     ;
-        if(item.isPickaxe())    return ItemTool.TYPE_PICKAXE    ;
-        if(item.isAxe())        return ItemTool.TYPE_AXE        ;
-        if(item.isShears())     return ItemTool.TYPE_SHEARS     ;
+        if (item.isSword()) return ItemTool.TYPE_SWORD;
+        if (item.isShovel()) return ItemTool.TYPE_SHOVEL;
+        if (item.isPickaxe()) return ItemTool.TYPE_PICKAXE;
+        if (item.isAxe()) return ItemTool.TYPE_AXE;
+        if (item.isShears()) return ItemTool.TYPE_SHEARS;
         return ItemTool.TYPE_NONE;
     }
 
     private static boolean correctTool0(int blockToolType, Item item) {
-        return (blockToolType == ItemTool.TYPE_SWORD    && item.isSword()   ) ||
-                (blockToolType == ItemTool.TYPE_SHOVEL  && item.isShovel()  ) ||
-                (blockToolType == ItemTool.TYPE_PICKAXE && item.isPickaxe() ) ||
-                (blockToolType == ItemTool.TYPE_AXE     && item.isAxe()     ) ||
-                (blockToolType == ItemTool.TYPE_SHEARS  && item.isShears()  ) ||
+        return (blockToolType == ItemTool.TYPE_SWORD && item.isSword()) ||
+                (blockToolType == ItemTool.TYPE_SHOVEL && item.isShovel()) ||
+                (blockToolType == ItemTool.TYPE_PICKAXE && item.isPickaxe()) ||
+                (blockToolType == ItemTool.TYPE_AXE && item.isAxe()) ||
+                (blockToolType == ItemTool.TYPE_SHEARS && item.isShears()) ||
                 blockToolType == ItemTool.TYPE_NONE;
     }
 
@@ -869,11 +905,11 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
         double baseTime = ((correctTool || canHarvestWithHand) ? 1.5 : 5.0) * blockHardness;
         double speed = 1.0 / baseTime;
         boolean isWoolBlock = blockId == Block.WOOL, isCobweb = blockId == Block.COBWEB;
-        if(correctTool) speed *= toolBreakTimeBonus0(toolType, toolTier, isWoolBlock, isCobweb);
+        if (correctTool) speed *= toolBreakTimeBonus0(toolType, toolTier, isWoolBlock, isCobweb);
         speed += speedBonusByEfficiencyLore0(efficiencyLoreLevel);
         speed *= speedRateByHasteLore0(hasteEffectLevel);
-        if(insideOfWaterWithoutAquaAffinity) speed *= 0.2;
-        if(outOfWaterButNotOnGround) speed *= 0.2;
+        if (insideOfWaterWithoutAquaAffinity) speed *= 0.2;
+        if (outOfWaterButNotOnGround) speed *= 0.2;
         return 1.0 / speed;
     }
 
@@ -1024,28 +1060,45 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     }
 
     public AxisAlignedBB getBoundingBox() {
-        if (this.boundingBox == null) {
-            this.boundingBox = this.recalculateBoundingBox();
-        }
-        return this.boundingBox;
+        return this.recalculateBoundingBox();
     }
 
     public AxisAlignedBB getCollisionBoundingBox() {
-        if (this.collisionBoundingBox == null) {
-            this.collisionBoundingBox = this.recalculateCollisionBoundingBox();
-        }
-        return this.collisionBoundingBox;
+        return this.recalculateCollisionBoundingBox();
     }
 
     protected AxisAlignedBB recalculateBoundingBox() {
-        return new AxisAlignedBB(
-                this.x,
-                this.y,
-                this.z,
-                this.x + 1,
-                this.y + 1,
-                this.z + 1
-        );
+        return this;
+    }
+
+    @Override
+    public double getMinX() {
+        return this.x;
+    }
+
+    @Override
+    public double getMinY() {
+        return this.y;
+    }
+
+    @Override
+    public double getMinZ() {
+        return this.z;
+    }
+
+    @Override
+    public double getMaxX() {
+        return this.x + 1;
+    }
+
+    @Override
+    public double getMaxY() {
+        return this.y + 1;
+    }
+
+    @Override
+    public double getMaxZ() {
+        return this.z + 1;
     }
 
     protected AxisAlignedBB recalculateCollisionBoundingBox() {
@@ -1058,12 +1111,12 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
             return null;
         }
 
-        Vector3 v1 = pos1.getIntermediateWithXValue(pos2, bb.minX);
-        Vector3 v2 = pos1.getIntermediateWithXValue(pos2, bb.maxX);
-        Vector3 v3 = pos1.getIntermediateWithYValue(pos2, bb.minY);
-        Vector3 v4 = pos1.getIntermediateWithYValue(pos2, bb.maxY);
-        Vector3 v5 = pos1.getIntermediateWithZValue(pos2, bb.minZ);
-        Vector3 v6 = pos1.getIntermediateWithZValue(pos2, bb.maxZ);
+        Vector3 v1 = pos1.getIntermediateWithXValue(pos2, bb.getMinX());
+        Vector3 v2 = pos1.getIntermediateWithXValue(pos2, bb.getMaxX());
+        Vector3 v3 = pos1.getIntermediateWithYValue(pos2, bb.getMinY());
+        Vector3 v4 = pos1.getIntermediateWithYValue(pos2, bb.getMaxY());
+        Vector3 v5 = pos1.getIntermediateWithZValue(pos2, bb.getMinZ());
+        Vector3 v6 = pos1.getIntermediateWithZValue(pos2, bb.getMaxZ());
 
         if (v1 != null && !bb.isVectorInYZ(v1)) {
             v1 = null;
@@ -1132,7 +1185,11 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
         }
 
         return MovingObjectPosition.fromBlock((int) this.x, (int) this.y, (int) this.z, f, vector.add(this.x, this.y, this.z));
+    }
 
+    public String getSaveId() {
+        String name = getClass().getName();
+        return name.substring(16, name.length());
     }
 
     @Override
@@ -1200,6 +1257,6 @@ public abstract class Block extends Position implements Metadatable, Cloneable {
     }
 
     public Item toItem() {
-        return new ItemBlock(this, this.meta, 1);
+        return new ItemBlock(this, this.getDamage(), 1);
     }
 }

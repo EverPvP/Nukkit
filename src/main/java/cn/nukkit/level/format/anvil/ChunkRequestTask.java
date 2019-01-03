@@ -22,10 +22,12 @@ public class ChunkRequestTask extends AsyncTask {
     protected final byte[] chunk;
     protected final int chunkX;
     protected final int chunkZ;
+    protected final long timeStamp;
 
     protected byte[] blockEntities;
 
     public ChunkRequestTask(Level level, Chunk chunk) {
+        this.timeStamp = chunk.getChanges();
         this.levelId = level.getId();
         this.chunk = chunk.toFastBinary();
         this.chunkX = chunk.getX();
@@ -52,9 +54,7 @@ public class ChunkRequestTask extends AsyncTask {
         Chunk chunk = Chunk.fromFastBinary(this.chunk);
         byte[] ids = chunk.getBlockIdArray();
         byte[] meta = chunk.getBlockDataArray();
-        byte[] blockLight = chunk.getBlockLightArray();
-        byte[] skyLight = chunk.getBlockSkyLightArray();
-        int[] heightMap = chunk.getHeightMapArray();
+        byte[] heightMap = chunk.getHeightMapArray();
         int[] biomeColors = chunk.getBiomeColorArray();
         ByteBuffer buffer = ByteBuffer.allocate(
                 16 * 16 * (128 + 64 + 64 + 64)
@@ -72,15 +72,10 @@ public class ChunkRequestTask extends AsyncTask {
             for (int z = 0; z < 16; ++z) {
                 orderedIds.put(this.getColumn(ids, x, z));
                 orderedData.put(this.getHalfColumn(meta, x, z));
-                orderedSkyLight.put(this.getHalfColumn(skyLight, x, z));
-                orderedLight.put(this.getHalfColumn(blockLight, x, z));
             }
         }
 
-        ByteBuffer orderedHeightMap = ByteBuffer.allocate(heightMap.length);
-        for (int i : heightMap) {
-            orderedHeightMap.put((byte) (i & 0xff));
-        }
+        ByteBuffer orderedHeightMap = ByteBuffer.wrap(heightMap);
         ByteBuffer orderedBiomeColors = ByteBuffer.allocate(biomeColors.length * 4);
         for (int i : biomeColors) {
             orderedBiomeColors.put(Binary.writeInt(i));
@@ -90,8 +85,6 @@ public class ChunkRequestTask extends AsyncTask {
                 buffer
                         .put(orderedIds)
                         .put(orderedData)
-                        .put(orderedSkyLight)
-                        .put(orderedLight)
                         .put(orderedHeightMap)
                         .put(orderedBiomeColors)
                         .put(this.blockEntities)
@@ -127,7 +120,7 @@ public class ChunkRequestTask extends AsyncTask {
     public void onCompletion(Server server) {
         Level level = server.getLevel(this.levelId);
         if (level != null && this.hasResult()) {
-            level.chunkRequestCallback(this.chunkX, this.chunkZ, (byte[]) this.getResult());
+            level.chunkRequestCallback(timeStamp, this.chunkX, this.chunkZ, (byte[]) this.getResult());
         }
     }
 }

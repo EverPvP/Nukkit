@@ -2,8 +2,13 @@ package cn.nukkit;
 
 import cn.nukkit.command.CommandReader;
 import cn.nukkit.network.protocol.ProtocolInfo;
+import cn.nukkit.utils.LogLevel;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.ServerKiller;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * `_   _       _    _    _ _
@@ -25,7 +30,7 @@ import cn.nukkit.utils.ServerKiller;
 public class Nukkit {
 
     public final static String VERSION = "1.0dev";
-    public final static String API_VERSION = "1.0.0";
+    public final static String API_VERSION = "1.0.5";
     public final static String CODENAME = "蘋果(Apple)派(Pie)";
     @Deprecated
     public final static String MINECRAFT_VERSION = ProtocolInfo.MINECRAFT_VERSION;
@@ -41,6 +46,9 @@ public class Nukkit {
     public static int DEBUG = 1;
 
     public static void main(String[] args) {
+        
+        // prefer IPv4 to stop any weird RakNet issues.
+        System.setProperty("java.net.preferIPv4Stack", "true");
 
         //Shorter title for windows 8/2012
         String osName = System.getProperty("os.name").toLowerCase();
@@ -50,16 +58,42 @@ public class Nukkit {
             }
         }
 
+        LogLevel logLevel = LogLevel.DEFAULT_LEVEL;
+        int index = -1;
+        boolean skip = false;
         //启动参数
         for (String arg : args) {
+            index++;
+            if (skip) {
+                skip = false;
+                continue;
+            }
+
             switch (arg) {
                 case "disable-ansi":
                     ANSI = false;
                     break;
+
+                case "--verbosity":
+                case "-v":
+                    skip = true;
+                    try {
+                        String levelName = args[index + 1];
+                        Set<String> levelNames = Arrays.stream(LogLevel.values()).map(level -> level.name().toLowerCase()).collect(Collectors.toSet());
+                        if (!levelNames.contains(levelName.toLowerCase())) {
+                            System.out.printf("'%s' is not a valid log level, using the default\n", levelName);
+                            continue;
+                        }
+                        logLevel = Arrays.stream(LogLevel.values()).filter(level -> level.name().equalsIgnoreCase(levelName)).findAny().orElse(LogLevel.DEFAULT_LEVEL);
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        System.out.println("You must enter the requested log level, using the default\n");
+                    }
+
             }
         }
 
-        MainLogger logger = new MainLogger(DATA_PATH + "server.log");
+        MainLogger logger = new MainLogger(DATA_PATH + "server.log", logLevel);
+        System.out.printf("Using log level '%s'\n", logLevel);
 
         try {
             if (ANSI) {

@@ -7,7 +7,6 @@ import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.AddEntityPacket;
 
 /**
- *
  * @author PikyCZ
  */
 public class EntityPolarBear extends EntityAnimal {
@@ -35,14 +34,6 @@ public class EntityPolarBear extends EntityAnimal {
     public float getHeight() {
         if (this.isBaby()) {
             return 0.7f;
-        }
-        return 1.4f;
-    }
-
-    @Override
-    public float getEyeHeight() {
-        if (this.isBaby()) {
-            return 0.65f;
         }
         return 1.4f;
     }

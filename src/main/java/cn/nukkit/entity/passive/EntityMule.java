@@ -7,7 +7,6 @@ import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.AddEntityPacket;
 
 /**
- *
  * @author PikyCZ
  */
 public class EntityMule extends EntityAnimal {
@@ -20,7 +19,7 @@ public class EntityMule extends EntityAnimal {
 
     @Override
     public Item[] getDrops() {
-        return new Item[]{};
+        return new Item[]{Item.get(Item.LEATHER)};
     }
 
     @Override

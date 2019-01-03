@@ -7,8 +7,7 @@ import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.AddEntityPacket;
 
 /**
- * Author: BeYkeRYkt
- * Nukkit Project
+ * Author: BeYkeRYkt Nukkit Project
  */
 public class EntityMooshroom extends EntityAnimal {
 
@@ -20,28 +19,23 @@ public class EntityMooshroom extends EntityAnimal {
 
     @Override
     public float getWidth() {
+        if (isBaby()) {
+            return 0.45f;
+        }
         return 0.9f;
     }
 
     @Override
     public float getHeight() {
         if (isBaby()) {
-            return 0.65f;
+            return 0.7f;
         }
-        return 1.3f;
-    }
-
-    @Override
-    public float getEyeHeight() {
-        if (isBaby()) {
-            return 0.65f;
-        }
-        return 1.2f;
+        return 1.4f;
     }
 
     @Override
     public String getName() {
-        return this.getNameTag();
+        return "Mooshroom";
     }
 
     @Override
@@ -59,7 +53,7 @@ public class EntityMooshroom extends EntityAnimal {
         super.initEntity();
         setMaxHealth(10);
     }
-    
+
     @Override
     public void spawnTo(Player player) {
         AddEntityPacket pk = new AddEntityPacket();

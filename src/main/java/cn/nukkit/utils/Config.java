@@ -33,7 +33,6 @@ public class Config {
 
     //private LinkedHashMap<String, Object> config = new LinkedHashMap<>();
     private ConfigSection config = new ConfigSection();
-    private final Map<String, Object> nestedCache = new HashMap<>();
     private File file;
     private boolean correct = false;
     private int type = Config.DETECT;
@@ -99,6 +98,10 @@ public class Config {
         this.load(file, type, defaultMap);
     }
 
+    public Config(File file, int type, ConfigSection defaultMap) {
+        this.load(file.toString(), type, defaultMap);
+    }
+
     @Deprecated
     public Config(File file, int type, LinkedHashMap<String, Object> defaultMap) {
         this(file.toString(), type, new ConfigSection(defaultMap));
@@ -106,7 +109,6 @@ public class Config {
 
     public void reload() {
         this.config.clear();
-        this.nestedCache.clear();
         this.correct = false;
         //this.load(this.file.toString());
         if (this.file == null) throw new IllegalStateException("Failed to reload Config. File object is undefined.");
@@ -547,9 +549,6 @@ public class Config {
                 dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
                 Yaml yaml = new Yaml(dumperOptions);
                 this.config = new ConfigSection(yaml.loadAs(content, LinkedHashMap.class));
-                if (this.config == null) {
-                    this.config = new ConfigSection();
-                }
                 break;
             // case Config.SERIALIZED
             case Config.ENUM:
